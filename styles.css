@@ -54,6 +54,12 @@ table {
   background: var(--surface); 
   border: var(--border); 
   color: var(--text); 
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-subtitle {
+  margin-top: auto;
 }
 
 .shiny-input-container { 
