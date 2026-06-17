@@ -1,0 +1,67 @@
+:root {
+  --bg: #ffffff;
+  --surface: transparent;
+  --text: #000000;
+  --mainborder: linear-gradient(180deg, #FFD659, #E4002B 13%, #007AC2 25%);
+  --border2: linear-gradient(90deg, #FFD659, #E4002B 50.74%, #007AC2);
+  --border: 1px solid #555555;
+  --sidebar-bg: linear-gradient(180deg, #fff0c2, #ff99ac 16%, #ccecff 25% 50%, #ffffff 90%);
+}
+
+html[data-bs-theme="dark"] {
+  --bg: #000000;
+  --surface: transparent;
+  --text: #ffffff;
+  --sidebar-bg: linear-gradient(180deg, #806000, #52000f 16%, #002033 25% 50%, #000000 90%);
+}
+
+h1, h2, h3, h4, h5, h6 { 
+  color: var(--text); 
+}
+
+body { 
+  background: var(--bg); 
+  font-family: system-ui, sans-serif; 
+  color: var(--text); 
+}
+
+section { 
+  background: var(--bg); 
+}
+
+aside.sidebar { 
+  background: var(--surface); 
+  color: var(--text); 
+  border-image: var(--mainborder) 1; 
+}
+
+th, td { 
+  font-size: 1rem; 
+  border-bottom: var(--border); 
+  color: var(--text); 
+}
+
+table { 
+  background: var(--surface); 
+  border-collapse: separate; 
+  width: 100%; 
+  border-spacing: 0 3px; 
+  margin-bottom: 3rem; 
+}
+
+/* .summary-card { background:var(--surface); border:1px solid transparent; border-image: var(--border2) 1; color:var(--text); } */
+.summary-card { 
+  background: var(--surface); 
+  border: var(--border); 
+  color: var(--text); 
+}
+
+.shiny-input-container { 
+  background: var(--surface); 
+  color: var(--text); 
+}
+
+.shiny-input-container input { 
+  background: var(--bg); 
+  color: var(--text);
+}
