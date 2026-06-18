@@ -82,7 +82,7 @@ def make_table(columns, rows, max_rows=40):
     for row in rows[:max_rows]:
         body_rows.append(
             ui.tags.tr(
-                *[ui.tags.td(format_value(row.get(col, []))) for col in columns]
+                *[ui.tags.td(format_value(row.get(col, "—"))) for col in columns]
             )
         )
 
@@ -98,18 +98,12 @@ def build_summary_card(
     subtitle: str = "",
     style: str = "",
 ):
-    card_style = (
-        "border-radius:1rem;"
-        "padding:1rem; min-width:12rem; flex:1 1 180px;"
-    )
-    if style:
-        card_style = f"{card_style} {style}"
     return ui.tags.div(
         ui.tags.h6(title, class_="summary-title"),
         ui.tags.h3(value, class_="summary-value"),
         ui.tags.h6(subtitle, class_="summary-subtitle"),
         class_="summary-card",
-        style=card_style,
+        style=style,
     )
 
 def build_table_section(title: str, table_ui, caption: str = ""):
@@ -130,13 +124,13 @@ def create_leaderboard_table(feed):
         driver = vehicle.get("driver") or {}
         rows.append(
             {
-                "Position": vehicle.get("running_position", []),
-                "Car": vehicle.get("vehicle_number", []),
-                "Driver": driver.get("full_name", []),
-                "Gap": vehicle.get("delta", []),
-                "Laps": vehicle.get("laps_completed", []),
+                "Position": vehicle.get("running_position", "—"),
+                "Car": vehicle.get("vehicle_number", "—"),
+                "Driver": driver.get("full_name", "—"),
+                "Gap": vehicle.get("delta", "—"),
+                "Laps": vehicle.get("laps_completed", "—"),
                 "Led": sum(lap.get("end_lap", 0) - lap.get("start_lap", 0) for lap in (vehicle.get("laps_led") or [])),
-                "Best Lap": vehicle.get("best_lap_time", []),
+                "Best Lap": vehicle.get("best_lap_time", "—"),
             }
         )
     return make_table(
@@ -156,21 +150,21 @@ def create_points_table(points):
         ).strip()
         rows.append(
             {
-                "Pos": item.get("points_position", []),
-                "Car": item.get("car_number", item.get("vehicle_number", [])),
-                "Driver": full_name or item.get("full_name", []),
-                "Points": item.get("points", []),
-                "To Leader": item.get("delta_leader", []),
-                "To Next": item.get("delta_next", []),
-                "Wins": item.get("wins", []),
-                "Top 5": item.get("top_5", []),
-                "Top 10": item.get("top_10", []),
-                "Poles": item.get("poles", []),
-                "Last Race Pts": item.get("points_earned_this_race", []),
-                "Stage 1 Pts": item.get("stage_1_points", []),
-                "Stage 2 Pts": item.get("stage_2_points", []),
-                "Stage 3 Pts": item.get("stage_3_points", []),
-                "Fastest Lap": item.get("is_fastest_lap_point", []),
+                "Pos": item.get("points_position", "—"),
+                "Car": item.get("car_number", item.get("vehicle_number", "—")),
+                "Driver": full_name or item.get("full_name", "—"),
+                "Points": item.get("points", "—"),
+                "To Leader": item.get("delta_leader", "—"),
+                "To Next": item.get("delta_next", "—"),
+                "Wins": item.get("wins", "—"),
+                "Top 5": item.get("top_5", "—"),
+                "Top 10": item.get("top_10", "—"),
+                "Poles": item.get("poles", "—"),
+                "Last Race Pts": item.get("points_earned_this_race", "—"),
+                "Stage 1 Pts": item.get("stage_1_points", "—"),
+                "Stage 2 Pts": item.get("stage_2_points", "—"),
+                "Stage 3 Pts": item.get("stage_3_points", "—"),
+                "Fastest Lap": item.get("is_fastest_lap_point", "—"),
             }
         )
     return make_table(
@@ -205,14 +199,14 @@ def create_stage_points_table(stage_data):
     rows = []
     for stage in stage_data:
         stage_num = stage.get("stage_number")
-        for result in stage.get("results", [])[:10]:
+        for result in stage.get("results", "—")[:10]:
             rows.append(
                 {
                     "Stage": stage_num,
-                    "Pos": result.get("position", []),
-                    "Car": result.get("vehicle_number", []),
-                    "Driver": result.get("full_name", []),
-                    "Points": result.get("stage_points", []),
+                    "Pos": result.get("position", "—"),
+                    "Car": result.get("vehicle_number", "—"),
+                    "Driver": result.get("full_name", "—"),
+                    "Points": result.get("stage_points", "—"),
                 }
             )
     if not rows:
@@ -230,10 +224,10 @@ def create_flag_table(flag_data):
     for item in flag_data[:20]:
         rows.append(
             {
-                "Lap": item.get("lap", []),
-                "Type": item.get("flag_type", item.get("flag", [])),
-                "Info": item.get("description", item.get("details", [])),
-                "Time": item.get("timestamp", []),
+                "Lap": item.get("lap", "—"),
+                "Type": item.get("flag_type", item.get("flag", "—")),
+                "Info": item.get("description", item.get("details", "—")),
+                "Time": item.get("timestamp", "—"),
             }
         )
     return make_table(["Lap", "Type", "Info", "Time"], rows)
@@ -279,19 +273,19 @@ def server(input: Inputs, output: Outputs, session: Session):
         series_id = feed.get("series_id")
         run_type = feed.get("run_type")
         flag_state = feed.get("flag_state")
-        lap_number = feed.get("lap_number", [])
-        laps_in_race = feed.get("laps_in_race", [])
+        lap_number = feed.get("lap_number", "—")
+        laps_in_race = feed.get("laps_in_race", "—")
         leader = None
         vehicles = feed.get("vehicles") or []
         if isinstance(vehicles, list):
             leader = next((v for v in vehicles if v.get("running_position") == 1), vehicles[0] if vehicles else None)
 
-        leader_name = []
-        leader_car = []
+        leader_name = "—"
+        leader_car = "—"
         if isinstance(leader, dict):
             driver = leader.get("driver") or {}
-            leader_name = driver.get("full_name", [])
-            leader_car = leader.get("vehicle_number", [])
+            leader_name = driver.get("full_name", "—")
+            leader_car = leader.get("vehicle_number", "—")
 
         flag_color = {
 #            1: "#cfc",
