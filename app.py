@@ -476,9 +476,9 @@ app_ui = ui.page_fluid(
                 ),
             ),
             ui.nav_panel(
-                "Coming Soon!",
+                "Loop Data (Coming Soon!)",
                 ui.tags.div(
-                    ui.output_ui("weekend_feed_section"),
+                    ui.output_ui("placeholder_loop_data_section"),
                 ),
             ),
         ),
