@@ -20,6 +20,17 @@ FLAG_STATE_LABELS = {
     9: "Cold Track",
 }
 
+FLAG_COLORS = {
+    1: "#0f0",
+    2: "#ff0",
+    3: "#f00",
+    4: "#fff",
+    5: "#888",
+    6: "#0df",
+    7: "#404"
+}
+
+
 RUN_TYPE_LABELS = {
     1: "Practice",
     2: "Qualifying",
@@ -214,23 +225,60 @@ def create_stage_points_table(stage_data):
     return make_table(["Stage", "Pos", "Car", "Driver", "Points"], rows)
 
 
-def create_flag_table(flag_data):
-    if not flag_data:
-        return ui.tags.div("No flag event data available.")
-    if not isinstance(flag_data, list):
+def create_flag_tracker_bar(flag_data, current_lap: int, total_laps: int):
+    if not flag_data or not isinstance(flag_data, list):
         return ui.tags.div("No flag event data available.")
 
-    rows = []
-    for item in flag_data[:20]:
-        rows.append(
-            {
-                "Lap": item.get("lap", "—"),
-                "Type": item.get("flag_type", item.get("flag", "—")),
-                "Info": item.get("description", item.get("details", "—")),
-                "Time": item.get("timestamp", "—"),
-            }
+    # Parse and sort valid flags
+    flags = []
+    for f in flag_data:
+        try:
+            lap = int(f.get("lap_number", 0))
+            # Fallbacks for state/type naming depending on feed structure
+            state = int(f.get("flag_state", f.get("flag", 1)))
+            desc = f.get("comments", "")
+            flags.append({"lap": lap, "state": state, "desc": desc})
+        except (ValueError, TypeError):
+            continue
+    
+    flags = sorted(flags, key=lambda x: x["lap"])
+    
+    if not flags:
+         return ui.tags.div("No race segments to display yet.")
+
+    segments = []
+    for i, flag in enumerate(flags):
+        start_lap = flag["lap"]
+        # Segment ends at next flag or current lap
+        end_lap = flags[i + 1]["lap"] if i + 1 < len(flags) else max(start_lap, current_lap)
+        
+        length = max(end_lap - start_lap, 0.5) # Minimum sliver for visibility
+        width_pct = (length / max(total_laps, current_lap, 1)) * 100
+        
+        bg_color = FLAG_COLORS.get(flag["state"], "transparent")
+        
+        tooltip_text = f"Lap {start_lap}: {flag['desc']}"
+
+        # Build pointer arrow
+        pointer = ui.tags.div(f"{start_lap}",
+            style="position: absolute; bottom: 100%; left: 0; transform: translateX(-50%); font-size: 0.65rem; color: #ddd; white-space: nowrap; margin-bottom: 4px; text-shadow: 1px 1px 2px #000;"
         )
-    return make_table(["Lap", "Type", "Info", "Time"], rows)
+
+        segment = ui.tags.div(
+            pointer,
+            title=tooltip_text,
+            style=f"width: {width_pct}%; background-color: {bg_color}; height: 12px; position: relative; border-right: 1px solid #222;"
+        )
+        segments.append(segment)
+
+    return ui.tags.div(
+        ui.tags.p("Hover over the timeline segments to view flag comments.", style="font-size: 0.85rem; margin-bottom: 1.5rem; color: #aaa; font-style: italic;"),
+        ui.tags.div(
+            *segments,
+            style="display: flex; width: 100%; height: 36px; background: transparent; margin-top: 1.5rem; margin-bottom: 1rem; border-radius: 2px;"
+        ),
+        style = "margin-bottom: 2rem;"
+    )
 
 def server(input: Inputs, output: Outputs, session: Session):
     @reactive.calc
@@ -263,98 +311,126 @@ def server(input: Inputs, output: Outputs, session: Session):
     @output
     @render.ui
     def session_card():
-        data = dashboard_data()
-        feed = data["feed"]
-        if not isinstance(feed, dict) or "error" in feed:
-            return build_error_card(feed.get("error", "Unable to load live feed."))
+        try:
+            data = dashboard_data()
+            feed = data["feed"]
+            if not isinstance(feed, dict) or "error" in feed:
+                return build_error_card(feed.get("error", "Unable to load live feed."))
 
-        run_name = feed.get("run_name", "Unknown")
-        track_name = feed.get("track_name", "Unknown")
-        series_id = feed.get("series_id")
-        run_type = feed.get("run_type")
-        flag_state = feed.get("flag_state")
-        lap_number = feed.get("lap_number", "—")
-        laps_in_race = feed.get("laps_in_race", "—")
-        leader = None
-        vehicles = feed.get("vehicles") or []
-        if isinstance(vehicles, list):
+            run_name = feed.get("run_name", "Unknown")
+            track_name = feed.get("track_name", "Unknown")
+            series_id = feed.get("series_id")
+            run_type = feed.get("run_type")
+            flag_state = feed.get("flag_state")
+            lap_number = feed.get("lap_number", "—")
+            laps_in_race = feed.get("laps_in_race", "—")
+
+            vehicles = feed.get("vehicles") or []
             leader = next((v for v in vehicles if v.get("running_position") == 1), vehicles[0] if vehicles else None)
 
-        leader_name = "—"
-        leader_car = "—"
-        if isinstance(leader, dict):
-            driver = leader.get("driver") or {}
-            leader_name = driver.get("full_name", "—")
-            leader_car = leader.get("vehicle_number", "—")
+            leader_name, leader_car = "—", "—"
+            if isinstance(leader, dict):
+                driver = leader.get("driver") or {}
+                leader_name = driver.get("full_name", "—")
+                leader_car = leader.get("vehicle_number", "—")
 
-        flag_color = {
-#            1: "#cfc",
-#            2: "#ffc",
-#            3: "#fcc",
-#            4: "#fff",
-#            5: "#888",
-            1: "#0f0",
-            2: "#ff0",
-            3: "#f00",
-            4: "#fff",
-            5: "#888",
-            6: "#0df",
-            7: "#404"
-        }.get(flag_state, "#888")
+            flag_color = FLAG_COLORS.get(flag_state, "#888")
 
-        return ui.tags.div(
-            ui.tags.div(
-                build_summary_card(
-                    "Latest Race",
-                    run_name,
-                    f"{track_name}",
+            return ui.tags.div(
+                ui.tags.div(
+                    build_summary_card(
+                        "Latest Race",
+                        run_name,
+                        f"{track_name}",
+                    ),
+                    build_summary_card(
+                        "Session",
+                        RUN_TYPE_LABELS.get(run_type, "Unknown"),
+                        f"Series: {SERIES_LABELS.get(series_id, f'Series {series_id}')}",
+                        style=f"background:{flag_color}; border:1px solid {flag_color};",
+                    ),
+                    build_summary_card(
+                        "Leader",
+                        f"#{leader_car} {leader_name}",
+                        f"Lap {lap_number} / {laps_in_race}",
+                    ),
+                    style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;",
                 ),
-                build_summary_card(
-                    "Session",
-                    RUN_TYPE_LABELS.get(run_type, "Unknown"),
-                    f"Series: {SERIES_LABELS.get(series_id, f'Series {series_id}')}",
-                    style=f"background:{flag_color}; border:1px solid {flag_color};",
-                ),
-                build_summary_card(
-                    "Leader",
-                    f"#{leader_car} {leader_name}",
-                    f"Lap {lap_number} / {laps_in_race}",
-                ),
-                style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;",
-            ),
-        )
+            )
+        except Exception as e:
+            return build_error_card(f"Error rendering session card: {str(e)}")
 
     @output
     @render.ui
-    def leaderboard_section():
-        data = dashboard_data()
-        feed = data["feed"]
-        if not isinstance(feed, dict) or "error" in feed:
-            return build_error_card(feed.get("error", "Unable to load leaderboard."))
+    def flag_tracker_section():
+        try:
+            data = dashboard_data()
+            flag_data = data["flag_data"]
+            feed = data["feed"]
+            
+            if isinstance(flag_data, dict) and "error" in flag_data:
+                return build_error_card(flag_data["error"])
+                
+            # Safely extract lap integers from the feed dictionary
+            try:
+                total_laps = int(feed.get("laps_in_race", 100)) if isinstance(feed, dict) else 100
+                if total_laps <= 0:
+                    total_laps = 100
+            except (ValueError, TypeError):
+                total_laps = 100
 
-        return build_table_section("Live Leaderboard", create_leaderboard_table(feed))
+            try:
+                current_lap = int(feed.get("lap_number", 0)) if isinstance(feed, dict) else 0
+            except (ValueError, TypeError):
+                current_lap = 0
+                
+            return build_table_section(
+                "Live Flag Tracker", 
+                create_flag_tracker_bar(flag_data, current_lap, total_laps)
+            )
+        except Exception as e:
+            return build_error_card(f"Error rendering flag tracker: {str(e)}")
+    
+    @output
+    @render.ui
+    def leaderboard_section():
+        try:
+            data = dashboard_data()
+            feed = data["feed"]
+            if not isinstance(feed, dict) or "error" in feed:
+                return build_error_card(feed.get("error", "Unable to load leaderboard."))
+
+            return build_table_section("Live Leaderboard", create_leaderboard_table(feed))
+        except Exception as e:
+            return build_error_card(f"Error rendering leaderboard: {str(e)}")
 
     @output
     @render.ui
     def points_section():
-        data = dashboard_data()
-        points = data["points_data"]
-        if not isinstance(points, list) and isinstance(points, dict) and "error" in points:
-            return build_error_card(points.get("error", "Unable to load points data."))
+        try:
+            data = dashboard_data()
+            points = data["points_data"]
+            if not isinstance(points, list) and isinstance(points, dict) and "error" in points:
+                return build_error_card(points.get("error", "Unable to load points data."))
 
-        if isinstance(points, dict) and "error" in points:
-            return build_error_card(points["error"])
+            if isinstance(points, dict) and "error" in points:
+                return build_error_card(points["error"])
 
-        return build_table_section("Live Standings", create_points_table(points))
+            return build_table_section("Live Standings", create_points_table(points))
+        except Exception as e:
+            return build_error_card(f"Error rendering standings: {str(e)}")
 
     @output
     @render.ui
     def stage_section():
-        data = dashboard_data()
-        stage = data["stage_data"]
-        if isinstance(stage, dict) and "error" in stage:
-            return build_error_card(stage["error"])
-        return build_table_section("Live Stage Points", create_stage_points_table(stage))
+        try:
+            data = dashboard_data()
+            stage = data["stage_data"]
+            if isinstance(stage, dict) and "error" in stage:
+                return build_error_card(stage["error"])
+            return build_table_section("Live Stage Points", create_stage_points_table(stage))
+        except Exception as e:
+            return build_error_card(f"Error rendering stage points: {str(e)}")
 
     @output
     @render.ui
@@ -362,7 +438,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         data = dashboard_data()
         refreshed = data["updated_at"].strftime("%Y-%m-%d %H:%M:%S")
         return ui.tags.div(
-            ui.tags.h2("Status", style="margin-top:0;"),
+            ui.tags.h2("Status"),
             ui.tags.div(
                 ui.tags.p(f"Refresh interval: {input.refresh_interval() or DEFAULT_REFRESH_SECONDS} seconds"),
                 ui.tags.p(f"Last update: {refreshed}"),
@@ -391,6 +467,7 @@ app_ui = ui.page_fluid(
                 "Live",
                 ui.tags.div(
                     ui.output_ui("session_card"),
+                    ui.output_ui("flag_tracker_section"),
                     ui.output_ui("leaderboard_section"),
                     ui.output_ui("points_section"),
                     ui.output_ui("stage_section"),
