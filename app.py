@@ -229,14 +229,12 @@ def create_flag_tracker_bar(flag_data, current_lap: int, total_laps: int):
     if not flag_data or not isinstance(flag_data, list):
         return ui.tags.div("No flag event data available.")
 
-    # Parse and sort valid flags
     flags = []
     for f in flag_data:
         try:
             lap = int(f.get("lap_number", 0))
-            # Fallbacks for state/type naming depending on feed structure
-            state = int(f.get("flag_state", f.get("flag", 1)))
-            desc = f.get("comments", "")
+            state = int(f.get("flag_state", 1))
+            desc = f.get("comment", "")
             flags.append({"lap": lap, "state": state, "desc": desc})
         except (ValueError, TypeError):
             continue
@@ -249,7 +247,6 @@ def create_flag_tracker_bar(flag_data, current_lap: int, total_laps: int):
     segments = []
     for i, flag in enumerate(flags):
         start_lap = flag["lap"]
-        # Segment ends at next flag or current lap
         end_lap = flags[i + 1]["lap"] if i + 1 < len(flags) else max(start_lap, current_lap)
         
         length = max(end_lap - start_lap, 0.5) # Minimum sliver for visibility
@@ -261,7 +258,7 @@ def create_flag_tracker_bar(flag_data, current_lap: int, total_laps: int):
 
         # Build pointer arrow
         pointer = ui.tags.div(f"{start_lap}",
-            style="position: absolute; bottom: 100%; left: 0; transform: translateX(-50%); font-size: 0.65rem; color: #ddd; white-space: nowrap; margin-bottom: 4px; text-shadow: 1px 1px 2px #000;"
+            style="position: absolute; bottom: 100%; left: 0; transform: translateX(-50%); font-size: 0.65rem; color: var(--text-color); white-space: nowrap; margin-bottom: 4px;"
         )
 
         segment = ui.tags.div(
@@ -272,7 +269,7 @@ def create_flag_tracker_bar(flag_data, current_lap: int, total_laps: int):
         segments.append(segment)
 
     return ui.tags.div(
-        ui.tags.p("Hover over the timeline segments to view flag comments.", style="font-size: 0.85rem; margin-bottom: 1.5rem; color: #aaa; font-style: italic;"),
+        ui.tags.p("Hover over the timeline segments to view flag comments."),
         ui.tags.div(
             *segments,
             style="display: flex; width: 100%; height: 36px; background: transparent; margin-top: 1.5rem; margin-bottom: 1rem; border-radius: 2px;"
@@ -371,7 +368,6 @@ def server(input: Inputs, output: Outputs, session: Session):
             if isinstance(flag_data, dict) and "error" in flag_data:
                 return build_error_card(flag_data["error"])
                 
-            # Safely extract lap integers from the feed dictionary
             try:
                 total_laps = int(feed.get("laps_in_race", 100)) if isinstance(feed, dict) else 100
                 if total_laps <= 0:
