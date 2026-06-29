@@ -249,14 +249,12 @@ def create_flag_tracker_bar(flag_data, current_lap: int, total_laps: int):
         start_lap = flag["lap"]
         end_lap = flags[i + 1]["lap"] if i + 1 < len(flags) else max(start_lap, current_lap)
         
-        length = max(end_lap - start_lap, 0.5) # Minimum sliver for visibility
+        length = max(end_lap - start_lap, 0.5)
         width_pct = (length / max(total_laps, current_lap, 1)) * 100
         
         bg_color = FLAG_COLORS.get(flag["state"], "transparent")
-        
         tooltip_text = f"Lap {start_lap}: {flag['desc']}"
 
-        # Build pointer arrow
         pointer = ui.tags.div(f"{start_lap}",
             style="position: absolute; bottom: 100%; left: 0; transform: translateX(-50%); font-size: 0.65rem; color: var(--text-color); white-space: nowrap; margin-bottom: 4px;"
         )
@@ -278,10 +276,6 @@ def create_flag_tracker_bar(flag_data, current_lap: int, total_laps: int):
     )
 
 def server(input: Inputs, output: Outputs, session: Session):
-    @reactive.calc
-    def race_list_basic():
-        year = input.weekend_year() or datetime.now().year
-        return fetch_json(normalize_url(BASE_URL_DEFAULT, f"cacher/{year}/race_list_basic.json"))
 
     @reactive.calc
     def dashboard_data():
@@ -304,6 +298,39 @@ def server(input: Inputs, output: Outputs, session: Session):
             "updated_at": datetime.now(),
             "base_url": base_url,
         }
+
+    # Centralized assignment calculation isolated strictly to Year selections
+    @reactive.calc
+    @reactive.event(input.loop_year)
+    def loop_year_resources():
+        year = input.loop_year()
+        if not year:
+            return {}, {}
+
+        race_url = normalize_url(BASE_URL_DEFAULT, f"cacher/{year}/race_list_basic.json")
+        drivers_url = normalize_url(BASE_URL_DEFAULT, "cacher/drivers.json")
+        
+        race_data = fetch_json(race_url)
+        drivers_data = fetch_json(drivers_url)
+        
+        drivers_map = {}
+        if isinstance(drivers_data, dict) and "error" not in drivers_data:
+            driver_list = drivers_data.get("response", [])
+        elif isinstance(drivers_data, list):
+            driver_list = drivers_data
+        else:
+            driver_list = []
+
+        for d in driver_list:
+            d_id = d.get("Nascar_Driver_ID")
+            name = d.get("Full_Name") or "Unknown Driver"
+            if d_id:
+                try:
+                    drivers_map[int(d_id)] = name
+                except ValueError:
+                    continue
+                    
+        return race_data, drivers_map
 
     @output
     @render.ui
@@ -335,22 +362,14 @@ def server(input: Inputs, output: Outputs, session: Session):
 
             return ui.tags.div(
                 ui.tags.div(
-                    build_summary_card(
-                        "Latest Race",
-                        run_name,
-                        f"{track_name}",
-                    ),
+                    build_summary_card("Latest Race", run_name, f"{track_name}"),
                     build_summary_card(
                         "Session",
                         RUN_TYPE_LABELS.get(run_type, "Unknown"),
                         f"Series: {SERIES_LABELS.get(series_id, f'Series {series_id}')}",
                         style=f"background:{flag_color}; border:1px solid {flag_color};",
                     ),
-                    build_summary_card(
-                        "Leader",
-                        f"#{leader_car} {leader_name}",
-                        f"Lap {lap_number} / {laps_in_race}",
-                    ),
+                    build_summary_card("Leader", f"#{leader_car} {leader_name}", f"Lap {lap_number} / {laps_in_race}"),
                     style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;",
                 ),
             )
@@ -380,10 +399,7 @@ def server(input: Inputs, output: Outputs, session: Session):
             except (ValueError, TypeError):
                 current_lap = 0
                 
-            return build_table_section(
-                "Live Flag Tracker", 
-                create_flag_tracker_bar(flag_data, current_lap, total_laps)
-            )
+            return build_table_section("Live Flag Tracker", create_flag_tracker_bar(flag_data, current_lap, total_laps))
         except Exception as e:
             return build_error_card(f"Error rendering flag tracker: {str(e)}")
     
@@ -408,9 +424,6 @@ def server(input: Inputs, output: Outputs, session: Session):
             points = data["points_data"]
             if not isinstance(points, list) and isinstance(points, dict) and "error" in points:
                 return build_error_card(points.get("error", "Unable to load points data."))
-
-            if isinstance(points, dict) and "error" in points:
-                return build_error_card(points["error"])
 
             return build_table_section("Live Standings", create_points_table(points))
         except Exception as e:
@@ -440,7 +453,108 @@ def server(input: Inputs, output: Outputs, session: Session):
                 ui.tags.p(f"Last update: {refreshed}"),
             ),
         )
+    
+    @reactive.Effect
+    def update_loop_races():
+        series = input.loop_series()
+        race_data, _ = loop_year_resources()
+        
+        choices = {}
+        if isinstance(race_data, dict) and "error" not in race_data:
+            series_key = f"series_{series}"
+            races = race_data.get(series_key, [])
+            
+            for r in races:
+                rid = str(r.get("race_id"))
+                name = r.get("race_name", f"Race {rid}")
+                choices[rid] = name
+                
+        if not choices:
+            choices = {"0": "No races available for this selection"}
+            
+        ui.update_select("loop_race", choices=choices)
 
+    @output
+    @render.ui
+    def loop_data_section():
+        year = input.loop_year()
+        series = input.loop_series()
+        race_id = input.loop_race()
+        
+        if not race_id or race_id == "0":
+            return ui.tags.div(ui.tags.p("Please select a valid race to view loop stats."))
+            
+        url = normalize_url(BASE_URL_DEFAULT, f"loopstats/prod/{year}/{series}/{race_id}.json")
+        data = fetch_json(url)
+        
+        drivers = []
+        if isinstance(data, list) and len(data) > 0:
+            if "drivers" in data[0]:
+                drivers = data[0]["drivers"]
+            else:
+                drivers = data
+        elif isinstance(data, dict):
+            drivers = data.get("drivers", [])
+            
+        if not drivers:
+            return ui.tags.div(ui.tags.p("No loop data drivers found for this event."))
+
+        # Extracting the isolated year-triggered drivers map resource
+        _, drivers_map = loop_year_resources()
+
+        col_mapping = {
+            "Driver": ["driver_id"],
+            "Finish Pos": ["ps"],
+            "Start Pos": ["start_ps"],
+            "Mid Pos": ["mid_ps"],
+            "Closing Pos": ["closing_ps"],
+            "Closing Diff": ["closing_laps_diff"],
+            "Best Pos": ["best_ps"],
+            "Worst Pos": ["worst_ps"],
+            "Avg Pos": ["avg_ps"],
+            "Green Passes": ["passes_gf"],
+            "Passed": ["passed_gf"],
+            "Pass Diff": ["passing_diff"],
+            "Quality Passes": ["quality_passes"],
+            "Fastest Laps": ["fast_laps"],
+            "Top 15 Laps": ["top15_laps"],
+            "Laps Led": ["lead_laps"],
+            "Laps": ["laps"],
+            "Rating": ["rating"]
+        }
+
+        def get_stat(item, keys, default="—"):
+            for k in keys:
+                if k in item:
+                    return item[k]
+            return default
+
+        rows = []
+        for d in drivers:
+            row = {}
+            for display_name, keys in col_mapping.items():
+                val = get_stat(d, keys)
+                
+                if display_name == "Driver" and val != "—":
+                    try:
+                        val = drivers_map.get(int(val), f"Unknown ID ({val})")
+                    except ValueError:
+                        pass
+                
+                row[display_name] = val
+            rows.append(row)
+            
+        try:
+            rows = sorted(rows, key=lambda x: float(x.get("Finish Pos", 999) if x.get("Finish Pos") != "—" else 999))
+        except ValueError:
+            pass
+        
+        if isinstance(data, dict) and "error" in data:
+            return build_error_card(f"Could not load loop data: {data['error']}")
+            
+        return build_table_section("Event Loop Statistics", make_table(list(col_mapping.keys()), rows, max_rows=50))
+
+current_year = datetime.now().year
 
 app_ui = ui.page_fluid(
     ui.include_css("styles.css"),
@@ -472,9 +586,28 @@ app_ui = ui.page_fluid(
                 ),
             ),
             ui.nav_panel(
-                "Loop Data (Coming Soon!)",
+                "Loop Data",
                 ui.tags.div(
-                    ui.output_ui("placeholder_loop_data_section"),
+                    ui.tags.div(
+                        ui.input_select(
+                            "loop_year", 
+                            "Year", 
+                            choices={str(y): str(y) for y in range(current_year, 2010, -1)}
+                        ),
+                        ui.input_select(
+                            "loop_series", 
+                            "Series", 
+                            choices={"1": "Cup", "2": "Xfinity", "3": "Trucks"}
+                        ),
+                        ui.input_select(
+                            "loop_race", 
+                            "Race", 
+                            choices={"0": "Loading..."}
+                        ),
+                        style="display:flex; gap:1.5rem; margin-bottom:2rem; align-items:flex-end;"
+                    ),
+                    ui.output_ui("loop_data_section"),
+                    style="padding:1rem;",
                 ),
             ),
         ),
