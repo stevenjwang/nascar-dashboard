@@ -447,12 +447,8 @@ def server(input: Inputs, output: Outputs, session: Session):
         data = dashboard_data()
         refreshed = data["updated_at"].strftime("%Y-%m-%d %H:%M:%S")
         return ui.tags.div(
-            ui.tags.h2("Status"),
-            ui.tags.div(
-                ui.tags.p(f"Refresh interval: {input.refresh_interval() or DEFAULT_REFRESH_SECONDS} seconds"),
-                ui.tags.p(f"Last update: {refreshed}"),
-            ),
-        )
+                ui.tags.p(f"Last updated {refreshed}"),
+            )
     
     @reactive.Effect
     def update_loop_races():

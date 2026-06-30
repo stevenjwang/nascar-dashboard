@@ -2,17 +2,17 @@
   --bg: #ffffff;
   --surface: transparent;
   --text: #000000;
-  --mainborder: linear-gradient(180deg, #FFD659, #E4002B 13%, #007AC2 25%);
+  --mainborder: linear-gradient(180deg, #FFD659, #E4002B 400px, #007AC2 800px);
   --border2: linear-gradient(90deg, #FFD659, #E4002B 50.74%, #007AC2);
   --border: 1px solid #555555;
-  --sidebar-bg: linear-gradient(180deg, #fff0c2, #ff99ac 13%, #ccecff 25% 50%, #ffffff 90%);
+  --sidebar-bg: linear-gradient(180deg, #fff0c2, #ff99ac 400px, #ccecff 800px 1040px, transparent);
 }
 
 html[data-bs-theme="dark"] {
   --bg: #000000;
   --surface: transparent;
   --text: #ffffff;
-  --sidebar-bg: linear-gradient(180deg, #806000, #52000f 13%, #002033 25% 50%, #000000 90%);
+  --sidebar-bg: linear-gradient(180deg, #806000, #52000f 400px, #002033 800px 1040px, transparent);
 }
 
 h1, h2, h3, h4, h5, h6 { 
