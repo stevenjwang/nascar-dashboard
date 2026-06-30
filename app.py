@@ -267,7 +267,7 @@ def create_flag_tracker_bar(flag_data, current_lap: int, total_laps: int):
         segments.append(segment)
 
     return ui.tags.div(
-        ui.tags.p("Hover over the timeline segments to view flag comments."),
+        ui.tags.p("Hover over flag segments to view comments."),
         ui.tags.div(
             *segments,
             style="display: flex; width: 100%; height: 36px; background: transparent; margin-top: 1.5rem; margin-bottom: 1rem; border-radius: 2px;"
@@ -499,26 +499,25 @@ def server(input: Inputs, output: Outputs, session: Session):
         if not drivers:
             return ui.tags.div(ui.tags.p("No loop data drivers found for this event."))
 
-        # Extracting the isolated year-triggered drivers map resource
         _, drivers_map = loop_year_resources()
 
         col_mapping = {
             "Driver": ["driver_id"],
-            "Finish Pos": ["ps"],
-            "Start Pos": ["start_ps"],
-            "Mid Pos": ["mid_ps"],
-            "Closing Pos": ["closing_ps"],
+            "Finish": ["ps"],
             "Closing Diff": ["closing_laps_diff"],
-            "Best Pos": ["best_ps"],
-            "Worst Pos": ["worst_ps"],
-            "Avg Pos": ["avg_ps"],
-            "Green Passes": ["passes_gf"],
+            "Closing Pos": ["closing_ps"],
+            "Mid Pos": ["mid_ps"],
+            "Start": ["start_ps"],
+            "Best": ["best_ps"],
+            "Worst": ["worst_ps"],
+            "Avg": ["avg_ps"],
+            "Passes": ["passes_gf"],
             "Passed": ["passed_gf"],
-            "Pass Diff": ["passing_diff"],
-            "Quality Passes": ["quality_passes"],
-            "Fastest Laps": ["fast_laps"],
-            "Top 15 Laps": ["top15_laps"],
-            "Laps Led": ["lead_laps"],
+            "Pass +/-": ["passing_diff"],
+            "T15 Passes": ["quality_passes"],
+            "T15 Laps": ["top15_laps"],
+            "Led": ["lead_laps"],
+            "FLaps": ["fast_laps"],
             "Laps": ["laps"],
             "Rating": ["rating"]
         }
@@ -552,7 +551,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         if isinstance(data, dict) and "error" in data:
             return build_error_card(f"Could not load loop data: {data['error']}")
             
-        return build_table_section("Event Loop Statistics", make_table(list(col_mapping.keys()), rows, max_rows=50))
+        return build_table_section("Loop Statistics", make_table(list(col_mapping.keys()), rows, max_rows=50))
 
 current_year = datetime.now().year
 
@@ -561,13 +560,13 @@ app_ui = ui.page_fluid(
     
     ui.layout_sidebar(
         ui.sidebar(
-            ui.tags.h1("NASCAR Dashboard!", style="margin-top:0;"),
+            ui.tags.h1("NASCAR Dashboard", style="margin-top:0;"),
             ui.input_numeric(
                 "refresh_interval",
-                "Refresh interval",
+                "Refresh interval (s)",
                 value=DEFAULT_REFRESH_SECONDS,
-                min=1,
-                max=30,
+                min=5,
+                max=300,
                 step=1,
             ),
             ui.input_dark_mode(id="mode_toggle"),
@@ -592,7 +591,7 @@ app_ui = ui.page_fluid(
                         ui.input_select(
                             "loop_year", 
                             "Year", 
-                            choices={str(y): str(y) for y in range(current_year, 2010, -1)}
+                            choices={str(y): str(y) for y in range(current_year, 2018, -1)}
                         ),
                         ui.input_select(
                             "loop_series", 
