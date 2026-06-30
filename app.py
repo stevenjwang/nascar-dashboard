@@ -263,7 +263,6 @@ def create_points_table(points):
                 "Last Race Pts": item.get("points_earned_this_race", "—"),
                 "Stage 1 Pts": item.get("stage_1_points", "—"),
                 "Stage 2 Pts": item.get("stage_2_points", "—"),
-                "Stage 3 Pts": item.get("stage_3_points", "—"),
                 "Fastest Lap": item.get("is_fastest_lap_point", "—"),
             }
         )
@@ -282,7 +281,6 @@ def create_points_table(points):
             "Last Race Pts",
             "Stage 1 Pts",
             "Stage 2 Pts",
-            "Stage 3 Pts",
             "Fastest Lap",
         ],
         rows,
