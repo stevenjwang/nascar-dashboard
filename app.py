@@ -757,6 +757,109 @@ def server(input: Inputs, output: Outputs, session: Session):
         fig.tight_layout()
         return fig
 
+    @output
+    @render.plot
+    def loop_laptime_plot():
+        selected = input.selected_loop_drivers()
+        
+        is_dark = input.mode_toggle() == "dark"
+        text_color = "white" if is_dark else "black"
+        grid_color = "#444444" if is_dark else "#cccccc"
+
+        if not selected:
+            fig, ax = plt.subplots(figsize=(10, 2))
+            fig.patch.set_alpha(0.0)
+            ax.axis("off")
+            ax.text(0.5, 0.5, "Select drivers to view their lap times.", 
+                    ha='center', va='center', fontsize=12, color=text_color)
+            return fig
+
+        year = input.loop_year()
+        series = input.loop_series()
+        race_id = input.loop_race()
+
+        if not race_id or race_id == "0":
+            return None
+
+        url = normalize_url(BASE_URL_DEFAULT, f"cacher/{year}/{series}/{race_id}/lap-times.json")
+        data = fetch_json(url)
+
+        if isinstance(data, dict) and "error" in data:
+            return None
+
+        _, drivers_map = loop_year_resources()
+        
+        plot_data = {did: {"laps": [], "times": [], "name": drivers_map.get(int(did), did)} 
+                     for did in selected}
+
+        drivers_list = data.get("laps", []) if isinstance(data, dict) else []
+
+        # Collect all valid times globally so we can calculate our viewing window
+        all_collected_times = []
+
+        for driver_entry in drivers_list:
+            v_id = str(driver_entry.get("NASCARDriverID", ""))
+            
+            if v_id in plot_data:
+                individual_laps = driver_entry.get("Laps", [])
+                for lap_info in individual_laps:
+                    lap_num = lap_info.get("Lap")
+                    time_val = lap_info.get("LapTime")
+                    
+                    if lap_num is not None and time_val is not None:
+                        try:
+                            t_float = float(time_val)
+                            plot_data[v_id]["laps"].append(int(lap_num))
+                            plot_data[v_id]["times"].append(t_float)
+                            all_collected_times.append(t_float)
+                        except (ValueError, TypeError):
+                            pass
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+        fig.patch.set_alpha(0.0)
+        ax.set_facecolor("none")
+
+        plotted_any = False
+        for did, d_data in plot_data.items():
+            if d_data["laps"]:
+                combined = sorted(zip(d_data["laps"], d_data["times"]))
+                laps, times = zip(*combined)
+                ax.plot(laps, times, label=d_data["name"])
+                plotted_any = True
+
+        if not plotted_any:
+            ax.axis("off")
+            ax.text(0.5, 0.5, "No lap time data found for selected drivers.", ha='center', va='center', color=text_color)
+            return fig
+
+# --- THE FASTEST-LAP MULTIPLIER APPROACH ---
+        if all_collected_times:
+            min_time = min(all_collected_times)
+            
+            # Green flag racing/tire falloff stays within ~25% of the fastest lap.
+            # Caution laps and pit stops are cropped out completely.
+            max_view_time = min_time * 1.25
+            
+            # Pad the bottom slightly so the fastest lap isn't hugging the edge
+            ax.set_ylim(bottom=min_time * 0.98, top=max_view_time)
+        # ---------------------------------------------
+
+        ax.set_xlabel("Lap Number", color=text_color)
+        ax.set_ylabel("Lap Time (Seconds)", color=text_color)
+        ax.tick_params(colors=text_color)
+        ax.grid(True, linestyle="--", alpha=0.5, color=grid_color)
+        
+        legend = ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        if legend:
+            for text in legend.get_texts():
+                text.set_color(text_color)
+            legend.get_frame().set_facecolor('black' if is_dark else 'white')
+            legend.get_frame().set_edgecolor(grid_color)
+            
+        fig.tight_layout()
+        return fig
+
+
 current_year = datetime.now().year
 
 app_ui = ui.page_fluid(
@@ -811,6 +914,7 @@ app_ui = ui.page_fluid(
                     ),
                     ui.output_ui("loop_data_section"),
                     ui.output_plot("loop_position_plot"),
+                    ui.output_plot("loop_laptime_plot"),
                     style="padding:1rem;",
                 ),
             ),
