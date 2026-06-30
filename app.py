@@ -743,6 +743,8 @@ def server(input: Inputs, output: Outputs, session: Session):
         ax.set_ylabel("Running Position", color=text_color)
         ax.tick_params(colors=text_color)
         ax.invert_yaxis() # 1st place stays at top of the chart
+        from matplotlib.ticker import MaxNLocator
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
         ax.grid(True, linestyle="--", alpha=0.5, color=grid_color)
         
         # Clean legend integration that respects light/dark dashboard styling
