@@ -102,6 +102,95 @@ def make_table(columns, rows, max_rows=40):
         ui.tags.tbody(*body_rows),
     )
 
+def make_sortable_table(columns, rows, table_id="sortable-table", max_rows=50):
+    if not rows:
+        return ui.tags.div("No data available.")
+
+    # Create headers with pointer cursors and click events
+    header_cells = [
+        ui.tags.th(
+            col,
+            style="cursor: pointer; user-select: none;",
+            onclick=f"sortTable('{table_id}', {i})",
+            title="Click to sort"
+        )
+        for i, col in enumerate(columns)
+    ]
+    
+    body_rows = []
+    for row in rows[:max_rows]:
+        body_rows.append(
+            ui.tags.tr(
+                *[ui.tags.td(format_value(row.get(col, "—"))) for col in columns]
+            )
+        )
+
+    # Injecting vanilla JS to handle the sorting behavior dynamically
+    js_script = ui.tags.script(ui.HTML("""
+    function sortTable(tableId, n) {
+        var table = document.getElementById(tableId);
+        var rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+        switching = true;
+        dir = "asc"; 
+        
+        // Clear old visual arrow indicators
+        var headers = table.rows[0].getElementsByTagName("TH");
+        for (var j = 0; j < headers.length; j++) {
+            headers[j].innerHTML = headers[j].innerHTML.replace(' ▲', '').replace(' ▼', '');
+        }
+
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+            for (i = 1; i < (rows.length - 1); i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName("TD")[n];
+                y = rows[i + 1].getElementsByTagName("TD")[n];
+                
+                var xVal = x.textContent || x.innerText;
+                var yVal = y.textContent || y.innerText;
+                
+                var xNum = parseFloat(xVal);
+                var yNum = parseFloat(yVal);
+                
+                // Allow numeric sorting for actual numbers, fallback to string
+                var isXNum = !isNaN(xNum) && xVal.trim() !== "—";
+                var isYNum = !isNaN(yNum) && yVal.trim() !== "—";
+                
+                var cmpX = isXNum ? xNum : xVal.toLowerCase();
+                var cmpY = isYNum ? yNum : yVal.toLowerCase();
+                
+                if (dir == "asc") {
+                    if (cmpX > cmpY) { shouldSwitch = true; break; }
+                } else if (dir == "desc") {
+                    if (cmpX < cmpY) { shouldSwitch = true; break; }
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+                switchcount++;
+            } else {
+                if (switchcount == 0 && dir == "asc") {
+                    dir = "desc";
+                    switching = true;
+                }
+            }
+        }
+        
+        // Add visual arrow indicator to the active sorted column
+        headers[n].innerHTML += (dir == "asc") ? " ▲" : " ▼";
+    }
+    """))
+
+    return ui.tags.div(
+        js_script,
+        ui.tags.table(
+            ui.tags.thead(ui.tags.tr(*header_cells)),
+            ui.tags.tbody(*body_rows),
+            id=table_id
+        )
+    )
 
 def build_summary_card(
     title: str,
@@ -267,7 +356,7 @@ def create_flag_tracker_bar(flag_data, current_lap: int, total_laps: int):
         segments.append(segment)
 
     return ui.tags.div(
-        ui.tags.p("Hover over flag segments to view comments."),
+        ui.tags.p("Hover over flag segments to view notes."),
         ui.tags.div(
             *segments,
             style="display: flex; width: 100%; height: 36px; background: transparent; margin-top: 1.5rem; margin-bottom: 1rem; border-radius: 2px;"
@@ -547,7 +636,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         if isinstance(data, dict) and "error" in data:
             return build_error_card(f"Could not load loop data: {data['error']}")
             
-        return build_table_section("Loop Statistics", make_table(list(col_mapping.keys()), rows, max_rows=50))
+        return build_table_section("Loop Statistics", make_sortable_table(list(col_mapping.keys()), rows, table_id="loop-stats-table", max_rows=50))
 
 current_year = datetime.now().year
 
