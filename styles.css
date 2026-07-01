@@ -12,7 +12,6 @@
   --flag-yellow: #ffa;
   --flag-red: #faa;
   --flag-checkered: #aaa;
-  --flag-unknown: #aaa;
 }
 
 html[data-bs-theme="dark"] {
@@ -26,7 +25,6 @@ html[data-bs-theme="dark"] {
   --flag-yellow: #330;
   --flag-red: #300;
   --flag-checkered: #333;
-  --flag-unknown: #333;
 }
 
 h1, h2, h3, h4, h5, h6 { 

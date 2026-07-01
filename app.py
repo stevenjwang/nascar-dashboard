@@ -27,11 +27,11 @@ FLAG_COLORS = {
     2: "var(--flag-yellow)",
     3: "var(--flag-red)",
     4: "var(--flag-checkered)",
-    5: "var(--flag-unknown)",
-    6: "var(--flag-unknown)",
-    7: "var(--flag-unknown)",
-    8: "var(--flag-unknown)",
-    9: "var(--flag-unknown)",
+    5: "var(--flag-checkered)",
+    6: "var(--flag-checkered)",
+    7: "var(--flag-checkered)",
+    8: "var(--flag-checkered)",
+    9: "var(--flag-checkered)",
 }
 
 
