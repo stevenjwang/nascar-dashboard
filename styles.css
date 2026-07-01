@@ -6,6 +6,13 @@
   --border2: linear-gradient(90deg, #FFD659, #E4002B 50.74%, #007AC2);
   --border: 1px solid #555555;
   --sidebar-bg: linear-gradient(180deg, #fff0c2, #ff99ac 400px, #ccecff 800px 1040px, transparent);
+
+  /* Light Mode Flag Backgrounds (Soft/Pastel) */
+  --flag-green: #afa;
+  --flag-yellow: #ffa;
+  --flag-red: #faa;
+  --flag-checkered: #aaa;
+  --flag-unknown: #aaa;
 }
 
 html[data-bs-theme="dark"] {
@@ -13,6 +20,13 @@ html[data-bs-theme="dark"] {
   --surface: transparent;
   --text: #ffffff;
   --sidebar-bg: linear-gradient(180deg, #806000, #52000f 400px, #002033 800px 1040px, transparent);
+
+  /* Dark Mode Flag Backgrounds (Deep/Rich) */
+  --flag-green: #030;
+  --flag-yellow: #330;
+  --flag-red: #300;
+  --flag-checkered: #333;
+  --flag-unknown: #333;
 }
 
 h1, h2, h3, h4, h5, h6 { 
@@ -50,7 +64,6 @@ table {
   margin-bottom: 3rem; 
 }
 
-/* .summary-card { background:var(--surface); border:1px solid transparent; border-image: var(--border2) 1; color:var(--text); } */
 .summary-card { 
   background: var(--surface); 
   border: var(--border); 
@@ -84,4 +97,77 @@ table {
 .shiny-input-container input { 
   background: var(--bg); 
   color: var(--text);
+}
+
+/* --- Added Refactored Classes --- */
+
+.error-card {
+  background: #aa0000;
+  border: 1px solid #ff0000;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  color: #ffffff;
+}
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-title {
+  margin-bottom: 1rem;
+}
+
+.flag-pointer {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  transform: translateX(-50%);
+  font-size: 0.65rem;
+  color: var(--text);
+  white-space: nowrap;
+  margin-bottom: 4px;
+}
+
+.flag-segment {
+  height: 12px;
+  position: relative;
+  border-right: 1px solid #222222;
+}
+
+.flag-container {
+  display: flex;
+  width: 100%;
+  height: 36px;
+  background: transparent;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  border-radius: 2px;
+}
+
+.flag-wrapper {
+  margin-bottom: 2rem;
+}
+
+.session-cards-container {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.nav-panel-content {
+  padding: 1rem;
+}
+
+.loop-inputs-container {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  align-items: flex-end;
+}
+
+.sidebar-title {
+  margin-top: 0;
 }

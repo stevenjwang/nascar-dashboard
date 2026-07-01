@@ -1,7 +1,8 @@
 import json
 from datetime import datetime
 
-import matplotlib.pyplot as plt
+from shinywidgets import output_widget, render_plotly
+import plotly.graph_objects as go
 import requests
 from shiny import App, Inputs, Outputs, Session, reactive, render, ui
 
@@ -22,13 +23,15 @@ FLAG_STATE_LABELS = {
 }
 
 FLAG_COLORS = {
-    1: "#0f0",
-    2: "#ff0",
-    3: "#f00",
-    4: "#fff",
-    5: "#888",
-    6: "#0df",
-    7: "#404"
+    1: "var(--flag-green)",
+    2: "var(--flag-yellow)",
+    3: "var(--flag-red)",
+    4: "var(--flag-checkered)",
+    5: "var(--flag-unknown)",
+    6: "var(--flag-unknown)",
+    7: "var(--flag-unknown)",
+    8: "var(--flag-unknown)",
+    9: "var(--flag-unknown)",
 }
 
 
@@ -55,10 +58,7 @@ def build_error_card(message: str):
     return ui.tags.div(
         ui.tags.strong("Error: "),
         message,
-        style=(
-            "background:#a00;border:1px solid #f00;"
-            "padding:0.75rem; border-radius:0.5rem; margin-bottom:1rem;"
-        ),
+        class_="error-card",
     )
 
 
@@ -115,7 +115,7 @@ def make_sortable_table(columns, rows, table_id="sortable-table", max_rows=50):
     header_cells = [
         ui.tags.th(
             col,
-            style="cursor: pointer; user-select: none;",
+            class_="sortable-header",
             onclick=f"sortTable('{table_id}', {i})",
             title="Click to sort"
         )
@@ -227,7 +227,7 @@ def build_summary_card(
 
 def build_table_section(title: str, table_ui, caption: str = ""):
     return ui.tags.section(
-        ui.tags.h2(title, style="margin-bottom:1rem;"),
+        ui.tags.h2(title, class_="section-title"),
         table_ui,
     )
 
@@ -361,14 +361,16 @@ def create_flag_tracker_bar(flag_data, current_lap: int, total_laps: int):
         bg_color = FLAG_COLORS.get(flag["state"], "transparent")
         tooltip_text = f"Lap {start_lap}: {flag['desc']}"
 
-        pointer = ui.tags.div(f"{start_lap}",
-            style="position: absolute; bottom: 100%; left: 0; transform: translateX(-50%); font-size: 0.65rem; color: var(--text-color); white-space: nowrap; margin-bottom: 4px;"
+        pointer = ui.tags.div(
+            f"{start_lap}",
+            class_="flag-pointer"
         )
 
         segment = ui.tags.div(
             pointer,
             title=tooltip_text,
-            style=f"width: {width_pct}%; background-color: {bg_color}; height: 12px; position: relative; border-right: 1px solid #222;"
+            class_="flag-segment",
+            style=f"width: {width_pct}%; background-color: {bg_color};"
         )
         segments.append(segment)
 
@@ -376,9 +378,9 @@ def create_flag_tracker_bar(flag_data, current_lap: int, total_laps: int):
         ui.tags.p("Hover over flag segments to view notes."),
         ui.tags.div(
             *segments,
-            style="display: flex; width: 100%; height: 36px; background: transparent; margin-top: 1.5rem; margin-bottom: 1rem; border-radius: 2px;"
+            class_="flag-container"
         ),
-        style = "margin-bottom: 2rem;"
+        class_="flag-wrapper"
     )
 
 def server(input: Inputs, output: Outputs, session: Session):
@@ -463,7 +465,7 @@ def server(input: Inputs, output: Outputs, session: Session):
                 leader_name = driver.get("full_name", "—")
                 leader_car = leader.get("vehicle_number", "—")
 
-            flag_color = FLAG_COLORS.get(flag_state, "#888")
+            flag_color = FLAG_COLORS.get(flag_state, "var(--flag-unknown)")
 
             return ui.tags.div(
                 ui.tags.div(
@@ -475,7 +477,7 @@ def server(input: Inputs, output: Outputs, session: Session):
                         style=f"background:{flag_color}; border:1px solid {flag_color};",
                     ),
                     build_summary_card("Leader", f"#{leader_car} {leader_name}", f"Lap {lap_number} / {laps_in_race}"),
-                    style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;",
+                    class_="session-cards-container",
                 ),
             )
         except Exception as e:
@@ -664,21 +666,28 @@ def server(input: Inputs, output: Outputs, session: Session):
         )
 
     @output
-    @render.plot
+    @render_plotly
     def loop_position_plot():
         selected = input.selected_loop_drivers()
         
-        # Track dark/light theme for Matplotlib label visibility
         is_dark = input.mode_toggle() == "dark"
-        text_color = "white" if is_dark else "black"
-        grid_color = "#444444" if is_dark else "#cccccc"
+
+        # Create an empty Plotly figure
+        fig = go.Figure()
+
+        # Base layout that respects your app's light/dark mode
+        base_layout = dict(
+            template="plotly_dark" if is_dark else "plotly_white",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            margin=dict(l=40, r=40, t=40, b=40)
+        )
 
         if not selected:
-            fig, ax = plt.subplots(figsize=(10, 2))
-            fig.patch.set_alpha(0.0)
-            ax.axis("off")
-            ax.text(0.5, 0.5, "Select drivers to view their running positions.", 
-                    ha='center', va='center', fontsize=12, color=text_color)
+            fig.add_annotation(text="Select drivers to view their running positions.", 
+                            xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False,
+                            font=dict(size=14, color="white" if is_dark else "black"))
+            fig.update_layout(**base_layout, xaxis=dict(visible=False), yaxis=dict(visible=False))
             return fig
 
         year = input.loop_year()
@@ -688,27 +697,23 @@ def server(input: Inputs, output: Outputs, session: Session):
         if not race_id or race_id == "0":
             return None
 
-        # Fetch clean, specific data
+        # Fetch data
         url = normalize_url(BASE_URL_DEFAULT, f"cacher/{year}/{series}/{race_id}/lap-times.json")
         data = fetch_json(url)
 
         if isinstance(data, dict) and "error" in data:
             return None
 
-        # Map IDs to names using the resources already loaded in your app
         _, drivers_map = loop_year_resources()
         
-        # Prepare plot structure
         plot_data = {did: {"laps": [], "positions": [], "name": drivers_map.get(int(did), did)} 
-                     for did in selected}
+                    for did in selected}
 
-        # Navigate the actual JSON structure: laps -> list of driver entries
         drivers_list = data.get("laps", []) if isinstance(data, dict) else []
 
         for driver_entry in drivers_list:
             v_id = str(driver_entry.get("NASCARDriverID", ""))
             
-            # If this driver is one of the selected checkboxes
             if v_id in plot_data:
                 individual_laps = driver_entry.get("Laps", [])
                 for lap_info in individual_laps:
@@ -719,59 +724,69 @@ def server(input: Inputs, output: Outputs, session: Session):
                         plot_data[v_id]["laps"].append(int(lap_num))
                         plot_data[v_id]["positions"].append(int(pos))
 
-        # Rendering
-        fig, ax = plt.subplots(figsize=(10, 6))
-        fig.patch.set_alpha(0.0)
-        ax.set_facecolor("none")
-
         plotted_any = False
         for did, d_data in plot_data.items():
             if d_data["laps"]:
-                # Sort by lap to ensure line connects properly
                 combined = sorted(zip(d_data["laps"], d_data["positions"]))
                 laps, poses = zip(*combined)
-                ax.plot(laps, poses, label=d_data["name"])
+                
+                fig.add_trace(go.Scatter(
+                    x=laps, 
+                    y=poses, 
+                    mode='lines', 
+                    name=d_data["name"],
+                    hovertemplate="P%{y}<extra></extra>" # Clean tooltip formatting
+                ))
                 plotted_any = True
 
         if not plotted_any:
-            ax.axis("off")
-            ax.text(0.5, 0.5, "No data found for selected drivers.", ha='center', va='center', color=text_color)
+            fig.add_annotation(text="No running position data found for selected drivers.", 
+                            xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
+            fig.update_layout(**base_layout, xaxis=dict(visible=False), yaxis=dict(visible=False))
             return fig
 
-        # Formatting with text color tracking so text doesn't turn invisible in dark mode
-        ax.set_xlabel("Lap Number", color=text_color)
-        ax.set_ylabel("Running Position", color=text_color)
-        ax.tick_params(colors=text_color)
-        ax.invert_yaxis() # 1st place stays at top of the chart
-        from matplotlib.ticker import MaxNLocator
-        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-        ax.grid(True, linestyle="--", alpha=0.5, color=grid_color)
+        # Apply layout and invert the Y-axis so 1st place is at the top
+        fig.update_layout(
+            **base_layout,
+            xaxis_title="Lap Number",
+            yaxis_title="Running Position",
+            hovermode="x unified",
+            hoverlabel=dict(bgcolor="black" if is_dark else "white", font_size=13),
+            legend=dict(
+                yanchor="top", y=1,
+                xanchor="left", x=1.02,
+                bgcolor="rgba(0,0,0,0)"
+            )
+        )
         
-        # Clean legend integration that respects light/dark dashboard styling
-        legend = ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-        if legend:
-            for text in legend.get_texts():
-                text.set_color(text_color)
-            legend.get_frame().set_facecolor('black' if is_dark else 'white')
-            
-        fig.tight_layout()
+        # Reverse the Y axis and force it to display integers only
+        fig.update_yaxes(autorange="reversed", tickformat="d")
+
         return fig
 
     @output
-    @render.plot
+    @render_plotly
     def loop_laptime_plot():
         selected = input.selected_loop_drivers()
         
         is_dark = input.mode_toggle() == "dark"
-        text_color = "white" if is_dark else "black"
-        grid_color = "#444444" if is_dark else "#cccccc"
+
+        # Create an empty Plotly figure right away
+        fig = go.Figure()
+
+        # Base layout for empty states or loading
+        base_layout = dict(
+            template="plotly_dark" if is_dark else "plotly_white",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            margin=dict(l=40, r=40, t=40, b=40)
+        )
 
         if not selected:
-            fig, ax = plt.subplots(figsize=(10, 2))
-            fig.patch.set_alpha(0.0)
-            ax.axis("off")
-            ax.text(0.5, 0.5, "Select drivers to view their lap times.", 
-                    ha='center', va='center', fontsize=12, color=text_color)
+            fig.add_annotation(text="Select drivers to view their lap times.", 
+                            xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False,
+                            font=dict(size=14, color="white" if is_dark else "black"))
+            fig.update_layout(**base_layout, xaxis=dict(visible=False), yaxis=dict(visible=False))
             return fig
 
         year = input.loop_year()
@@ -781,6 +796,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         if not race_id or race_id == "0":
             return None
 
+        # Fetch data
         url = normalize_url(BASE_URL_DEFAULT, f"cacher/{year}/{series}/{race_id}/lap-times.json")
         data = fetch_json(url)
 
@@ -790,11 +806,9 @@ def server(input: Inputs, output: Outputs, session: Session):
         _, drivers_map = loop_year_resources()
         
         plot_data = {did: {"laps": [], "times": [], "name": drivers_map.get(int(did), did)} 
-                     for did in selected}
+                    for did in selected}
 
         drivers_list = data.get("laps", []) if isinstance(data, dict) else []
-
-        # Collect all valid times globally so we can calculate our viewing window
         all_collected_times = []
 
         for driver_entry in drivers_list:
@@ -815,48 +829,53 @@ def server(input: Inputs, output: Outputs, session: Session):
                         except (ValueError, TypeError):
                             pass
 
-        fig, ax = plt.subplots(figsize=(10, 6))
-        fig.patch.set_alpha(0.0)
-        ax.set_facecolor("none")
-
         plotted_any = False
         for did, d_data in plot_data.items():
             if d_data["laps"]:
                 combined = sorted(zip(d_data["laps"], d_data["times"]))
                 laps, times = zip(*combined)
-                ax.plot(laps, times, label=d_data["name"])
+                
+                # Add each driver as a line trace
+                fig.add_trace(go.Scatter(
+                    x=laps, 
+                    y=times, 
+                    mode='lines', 
+                    name=d_data["name"],
+                    hovertemplate="%{y:.3f}s<extra></extra>" # Formats time cleanly
+                ))
                 plotted_any = True
 
         if not plotted_any:
-            ax.axis("off")
-            ax.text(0.5, 0.5, "No lap time data found for selected drivers.", ha='center', va='center', color=text_color)
+            fig.add_annotation(text="No lap time data found for selected drivers.", 
+                            xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
+            fig.update_layout(**base_layout, xaxis=dict(visible=False), yaxis=dict(visible=False))
             return fig
 
-# --- THE FASTEST-LAP MULTIPLIER APPROACH ---
+        # --- THE FASTEST-LAP MULTIPLIER APPROACH ---
+        y_range = None
         if all_collected_times:
             min_time = min(all_collected_times)
-            
-            # Green flag racing/tire falloff stays within ~25% of the fastest lap.
-            # Caution laps and pit stops are cropped out completely.
             max_view_time = min_time * 1.25
-            
-            # Pad the bottom slightly so the fastest lap isn't hugging the edge
-            ax.set_ylim(bottom=min_time * 0.98, top=max_view_time)
+            y_range = [min_time * 0.98, max_view_time]
         # ---------------------------------------------
 
-        ax.set_xlabel("Lap Number", color=text_color)
-        ax.set_ylabel("Lap Time (Seconds)", color=text_color)
-        ax.tick_params(colors=text_color)
-        ax.grid(True, linestyle="--", alpha=0.5, color=grid_color)
+        # Update axes, legend, and interactions
+        fig.update_layout(
+            **base_layout,
+            xaxis_title="Lap Number",
+            yaxis_title="Lap Time (Seconds)",
+            hovermode="x unified", # Shows everyone's time for the hovered lap at once
+            hoverlabel=dict(bgcolor="#222" if is_dark else "#fff", font_size=13),
+            legend=dict(
+                yanchor="top", y=1,
+                xanchor="left", x=1.02,
+                bgcolor="rgba(0,0,0,0)"
+            )
+        )
         
-        legend = ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-        if legend:
-            for text in legend.get_texts():
-                text.set_color(text_color)
-            legend.get_frame().set_facecolor('black' if is_dark else 'white')
-            legend.get_frame().set_edgecolor(grid_color)
+        if y_range:
+            fig.update_yaxes(range=y_range)
             
-        fig.tight_layout()
         return fig
 
 
@@ -867,7 +886,7 @@ app_ui = ui.page_fluid(
     
     ui.layout_sidebar(
         ui.sidebar(
-            ui.tags.h1("NASCAR Dashboard", style="margin-top:0;"),
+            ui.tags.h1("NASCAR Dashboard", class_="sidebar-title"),
             ui.input_numeric(
                 "refresh_interval",
                 "Refresh interval (s)",
@@ -888,7 +907,7 @@ app_ui = ui.page_fluid(
                     ui.output_ui("points_section"),
                     ui.output_ui("stage_section"),
                     ui.output_ui("metadata_section"),
-                    style="padding:1rem;",
+                    class_="nav-panel-content",
                 ),
             ),
             ui.nav_panel(
@@ -910,12 +929,12 @@ app_ui = ui.page_fluid(
                             "Race", 
                             choices={"0": "Loading..."}
                         ),
-                        style="display:flex; gap:1.5rem; margin-bottom:2rem; align-items:flex-end;"
+                        class_="loop-inputs-container",
                     ),
                     ui.output_ui("loop_data_section"),
-                    ui.output_plot("loop_position_plot"),
-                    ui.output_plot("loop_laptime_plot"),
-                    style="padding:1rem;",
+                    output_widget("loop_position_plot"), 
+                    output_widget("loop_laptime_plot"),
+                    class_="nav-panel-content",
                 ),
             ),
         ),
