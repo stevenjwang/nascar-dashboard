@@ -97,7 +97,8 @@ def create_leaderboard_table(feed):
     return make_table(["Position", "Car", "Driver", "Gap", "Laps", "Led", "Best Lap"], rows)
 
 def create_points_table(points):
-    if not isinstance(points, list): return ui.tags.div("No points standings data available.")
+    if not isinstance(points, list):
+        return ui.tags.div("No points standings data available.")
     rows = [{
         "Pos": item.get("points_position", "—"),
         "Car": item.get("car_number", item.get("vehicle_number", "—")),
@@ -118,7 +119,8 @@ def create_points_table(points):
     return make_table(cols, rows)
 
 def create_stage_points_table(stage_data):
-    if not stage_data: return ui.tags.div("No stage points data available.")
+    if not stage_data:
+        return ui.tags.div("No stage points data available.")
     stage_data = [stage_data] if isinstance(stage_data, dict) and "results" in stage_data else stage_data
     rows = []
     for stage in stage_data:
@@ -133,15 +135,18 @@ def create_stage_points_table(stage_data):
     return make_table(["Stage", "Pos", "Car", "Driver", "Points"], rows) if rows else ui.tags.div("No stage points results found.")
 
 def create_flag_tracker_bar(flag_data, current_lap: int, total_laps: int):
-    if not flag_data or not isinstance(flag_data, list): return ui.tags.div("No flag event data available.")
+    if not flag_data or not isinstance(flag_data, list):
+        return ui.tags.div("No flag event data available.")
     
     flags = []
     for f in flag_data:
-        try: flags.append({"lap": int(f.get("lap_number", 0)), "state": int(f.get("flag_state", 1)), "desc": f.get("comment", "")})
+        try:
+            flags.append({"lap": int(f.get("lap_number", 0)), "state": int(f.get("flag_state", 1)), "desc": f.get("comment", "")})
         except (ValueError, TypeError): continue
     
     flags = sorted(flags, key=lambda x: x["lap"])
-    if not flags: return ui.tags.div("No race segments to display yet.")
+    if not flags:
+        return ui.tags.div("No race segments to display yet.")
 
     segments = []
     for i, flag in enumerate(flags):

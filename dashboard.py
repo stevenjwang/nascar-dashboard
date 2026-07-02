@@ -56,7 +56,8 @@ def server(input: Inputs, output: Outputs, session: Session):
     @reactive.event(input.loop_year)
     def loop_year_resources():
         year = input.loop_year()
-        if not year: return {}, {}
+        if not year:
+            return {}, {}
         
         race_data = fetch_json(normalize_url(BASE_URL_DEFAULT, f"cacher/{year}/race_list_basic.json"))
         drivers_data = fetch_json(normalize_url(BASE_URL_DEFAULT, "cacher/drivers.json"))
@@ -68,7 +69,8 @@ def server(input: Inputs, output: Outputs, session: Session):
     @reactive.calc
     def loop_lap_data():
         race_id = input.loop_race()
-        if not race_id or race_id == "0": return None
+        if not race_id or race_id == "0":
+            return None
         url = normalize_url(BASE_URL_DEFAULT, f"cacher/{input.loop_year()}/{input.loop_series()}/{race_id}/lap-times.json")
         return fetch_json(url)
 
@@ -76,7 +78,8 @@ def server(input: Inputs, output: Outputs, session: Session):
     @render.ui
     def session_card():
         feed = dashboard_data()["feed"]
-        if not isinstance(feed, dict) or "error" in feed: return cmp.build_error_card(feed.get("error", "Unable to load live feed."))
+        if not isinstance(feed, dict) or "error" in feed:
+            return cmp.build_error_card(feed.get("error", "Unable to load live feed."))
 
         leader = next((v for v in feed.get("vehicles", []) if v.get("running_position") == 1), None)
         leader_name, leader_car = ((leader.get("driver") or {}).get("full_name", "—"), leader.get("vehicle_number", "—")) if leader else ("—", "—")
@@ -93,7 +96,8 @@ def server(input: Inputs, output: Outputs, session: Session):
     @render.ui
     def flag_tracker_section():
         data = dashboard_data()
-        if isinstance(data["flag_data"], dict) and "error" in data["flag_data"]: return cmp.build_error_card(data["flag_data"]["error"])
+        if isinstance(data["flag_data"], dict) and "error" in data["flag_data"]:
+            return cmp.build_error_card(data["flag_data"]["error"])
         
         feed = data["feed"] if isinstance(data["feed"], dict) else {}
         total_laps = max(int(feed.get("laps_in_race", 100)), 1)
@@ -180,7 +184,8 @@ def server(input: Inputs, output: Outputs, session: Session):
             return fig.update_layout(**base_layout, xaxis=dict(visible=False), yaxis=dict(visible=False))
 
         data = loop_lap_data()
-        if not data or "error" in data: return None
+        if not data or "error" in data:
+            return None
 
         _, drivers_map = loop_year_resources()
         plot_data = {did: {"laps": [], "positions": [], "name": drivers_map.get(int(did), did)} for did in selected}
@@ -217,7 +222,8 @@ def server(input: Inputs, output: Outputs, session: Session):
             return fig.update_layout(**base_layout, xaxis=dict(visible=False), yaxis=dict(visible=False))
 
         data = loop_lap_data()
-        if not data or "error" in data: return None
+        if not data or "error" in data:
+            return None
 
         _, drivers_map = loop_year_resources()
         plot_data = {did: {"laps": [], "times": [], "name": drivers_map.get(int(did), did)} for did in selected}
@@ -233,7 +239,8 @@ def server(input: Inputs, output: Outputs, session: Session):
                             plot_data[v_id]["laps"].append(int(lap["Lap"]))
                             plot_data[v_id]["times"].append(t)
                             all_times.append(t)
-                        except ValueError: pass
+                        except ValueError:
+                            pass
 
         for _, d_data in plot_data.items():
             if d_data["laps"]:
@@ -245,7 +252,8 @@ def server(input: Inputs, output: Outputs, session: Session):
             return fig.update_layout(**base_layout, xaxis=dict(visible=False), yaxis=dict(visible=False))
 
         fig.update_layout(**base_layout, xaxis_title="Lap Number", yaxis_title="Lap Time (Seconds)", hovermode="x unified", hoverlabel=dict(bgcolor="#222" if is_dark else "#fff", font_size=13), legend=dict(yanchor="top", y=1, xanchor="left", x=1.02, bgcolor="rgba(0,0,0,0)"))
-        if all_times: fig.update_yaxes(range=[min(all_times) * 0.98, min(all_times) * 1.25])
+        if all_times:
+            fig.update_yaxes(range=[min(all_times) * 0.98, min(all_times) * 1.25])
             
         return fig
 
