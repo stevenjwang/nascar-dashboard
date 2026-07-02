@@ -65,8 +65,6 @@ def server(input: Inputs, output: Outputs, session: Session):
         drivers_map = {int(d["Nascar_Driver_ID"]): d.get("Full_Name", "Unknown") for d in driver_list if d.get("Nascar_Driver_ID") is not None and str(d["Nascar_Driver_ID"]).isdigit()}
         return race_data, drivers_map
 
-    # --- NEW PERFORMANCE OPTIMIZATION ---
-    # Fetch loop lap data ONCE per driver/race selection, caching it for both plots
     @reactive.calc
     def loop_lap_data():
         race_id = input.loop_race()
@@ -143,8 +141,6 @@ def server(input: Inputs, output: Outputs, session: Session):
         if isinstance(race_data, dict):
             valid_races = [str(r.get("race_id")) for r in race_data.get(f"series_{input.loop_series()}", [])]
             if race_id not in valid_races:
-                # The dropdown is in a transient state and hasn't updated yet. 
-                # Return a temporary loading message instead of flashing an error.
                 return ui.tags.div(ui.tags.p("Loading race data...", class_="text-muted"))
                 
         data = fetch_json(normalize_url(BASE_URL_DEFAULT, f"loopstats/prod/{input.loop_year()}/{input.loop_series()}/{race_id}.json"))
