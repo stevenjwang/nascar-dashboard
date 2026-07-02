@@ -6,12 +6,11 @@
   --border2: linear-gradient(90deg, #FFD659, #E4002B 50.74%, #007AC2);
   --border: 1px solid #555555;
   --sidebar-bg: linear-gradient(180deg, #fff0c2, #ff99ac 400px, #ccecff 800px 1040px, transparent);
-
-  /* Light Mode Flag Backgrounds (Soft/Pastel) */
-  --flag-green: #afa;
-  --flag-yellow: #ffa;
-  --flag-red: #faa;
-  --flag-checkered: #aaa;
+  --flag-green: #9f9;
+  --flag-yellow: #ff9;
+  --flag-red: #f99;
+  --flag-white: #fff;
+  --flag-checkered: #999;
 }
 
 html[data-bs-theme="dark"] {
@@ -19,12 +18,11 @@ html[data-bs-theme="dark"] {
   --surface: transparent;
   --text: #ffffff;
   --sidebar-bg: linear-gradient(180deg, #806000, #52000f 400px, #002033 800px 1040px, transparent);
-
-  /* Dark Mode Flag Backgrounds (Deep/Rich) */
-  --flag-green: #030;
-  --flag-yellow: #330;
-  --flag-red: #300;
-  --flag-checkered: #333;
+  --flag-green: #060;
+  --flag-yellow: #660;
+  --flag-red: #600;
+  --flag-white: #fff;
+  --flag-checkered: #666;
 }
 
 h1, h2, h3, h4, h5, h6 { 
@@ -97,8 +95,6 @@ table {
   color: var(--text);
 }
 
-/* --- Added Refactored Classes --- */
-
 .error-card {
   background: #aa0000;
   border: 1px solid #ff0000;
@@ -164,8 +160,4 @@ table {
   gap: 1.5rem;
   margin-bottom: 2rem;
   align-items: flex-end;
-}
-
-.sidebar-title {
-  margin-top: 0;
 }

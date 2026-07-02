@@ -1,6 +1,6 @@
 # NASCAR Dashboard
 
-[Link to deploy coming Q3 2026]
+[Deploy coming Q3 2026]
 
 A real-time data visualization dashboard for NASCAR. This project consumes various NASCAR JSON endpoints to provide real-time race updates, advanced lap-by-lap analytics, and potentially a historical database.
 
